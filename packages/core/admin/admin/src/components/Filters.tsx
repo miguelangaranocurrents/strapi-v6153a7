@@ -33,7 +33,8 @@ import type { Schema } from '@strapi/types';
 interface FilterFormData {
   name: string;
   filter: string;
-  value?: string;
+  /** Boolean inputs submit a real boolean rather than a string. */
+  value?: string | boolean;
 }
 
 /**
@@ -187,7 +188,21 @@ const PopoverImpl = ({ zIndex }: { zIndex?: number }) => {
   }
 
   const handleSubmit = (data: FilterFormData) => {
-    const value = FILTERS_WITH_NO_VALUE.includes(data.filter) ? 'true' : (data.value ?? '');
+    /**
+     * There will ALWAYS be an option because we use the options to create the form data.
+     */
+    const fieldOptions = options.find((filter) => filter.name === data.name)!;
+
+    /**
+     * A boolean toggle displays "False" until it is touched, so an untouched boolean filter
+     * applies `false`. Booleans are stringified so that `false` is not treated as "no value".
+     */
+    const rawValue = data.value ?? (fieldOptions.type === 'boolean' ? false : '');
+    const value = FILTERS_WITH_NO_VALUE.includes(data.filter)
+      ? 'true'
+      : typeof rawValue === 'boolean'
+        ? String(rawValue)
+        : rawValue;
 
     if (!value) {
       return;
@@ -196,11 +211,6 @@ const PopoverImpl = ({ zIndex }: { zIndex?: number }) => {
     if (onChange) {
       onChange(data);
     }
-
-    /**
-     * There will ALWAYS be an option because we use the options to create the form data.
-     */
-    const fieldOptions = options.find((filter) => filter.name === data.name)!;
 
     /**
      * If the filter is a relation, we need to nest the filter object,
